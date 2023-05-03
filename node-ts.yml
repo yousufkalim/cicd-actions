@@ -1,0 +1,122 @@
+# ---------------- Developed by Yousuf Kalim - MERN TL ---------------- #
+# This workflow is a Continuous Integration/Continuous Deployment (CI/CD) pipeline for deploying a Node.js backend application
+# to a remote ubuntu server.
+#
+# Here are some comments to make it easier for everyone to use:
+#
+# 1. The workflow uses environment variables to set the application name, component name, and release path.
+#    Ensure that these are set correctly according to your application's configuration.
+#
+# 2. The workflow runs on a push to the main branch and can be manually triggered with inputs to specify the target environment.
+#
+# 3. It's important to note that this workflow uses repository environment and several secrets and variables that need to be set up
+#    in order for it to work properly. You will need to create the following secrets in your repository environment:
+#
+#    3.1. REMOTE_SERVER: the IP address or domain name of the remote server you are deploying to.
+#    3.2. REMOTE_USER: the username you use to SSH into the remote server (root user is recommended).
+#    3.3. REMOTE_KEY: the SSH private key you use to authenticate with the remote server.
+#    3.4. ENV_FILE: the contents of your application's .env file. This should be a single-line string with each
+#         environment variable separated by spaces.
+#
+# In addition, you will need to set up the following variables in your repository environment:
+#
+#    3.5. NGINX_CONFIG: the contents of your NGINX configuration file. This should be a multi-line string with each line
+#         separated by a newline character.
+#
+# Overall, this workflow provides a good starting point for deploying a Node.js backend application to a remote server using GitHub Actions.
+# However, it should be customized according to your application's specific requirements.
+
+name: 'CI/CD'
+
+env:
+  APP_NAME: 'node' # Set this to your app name
+  COMPONENT_NAME: 'backend' # Set this to your component name (e.g, frontend, admin, backend)
+  RELEASE_PATH: /root/node/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/backend # This is dyanmic release path and it will be unique for each environment, e.g: /root/node/dev/backend
+  NODE_ENV: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }} # It will auto check the current environment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (dev, staging, prod)'
+        type: environment
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}
+
+    steps:
+      # The first step checks out the code from the repository.
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # The second step sets up Node.js with version 14.
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      # The third step transfers the code to the remote server using the Secure Copy (SCP) protocol.
+      # The source directory is set to .,!./uploads, which excludes the uploads directory from being transferred.
+      # Ensure that this is set correctly according to your application's file structure.
+      - name: Transfer files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.REMOTE_SERVER }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          rm: true
+          source: '.,!./uploads'
+          target: ${{ env.RELEASE_PATH }}/current
+
+      # The fourth step creates shared folders for the uploads directory and the node_modules directory and creates symbolic links
+      # to these folders in the current release directory. This helps to ensure that the uploads and node_modules directories
+      # persist across releases and are not overwritten.
+      - name: Create shared folders
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_SERVER }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          script: |
+            cd ${{ env.RELEASE_PATH }}
+            mkdir -p shared/uploads
+            mkdir -p shared/node_modules
+            ln -sfn ${{ env.RELEASE_PATH }}/shared/uploads ${{ env.RELEASE_PATH }}/current/uploads
+            ln -sfn ${{ env.RELEASE_PATH }}/shared/node_modules ${{ env.RELEASE_PATH }}/current/node_modules
+
+      # The fifth step copies configuration files to the remote server, including the .env file and an NGINX configuration file.
+      # The NGINX configuration file is used to proxy requests to the Node.js backend application.
+      # Ensure that this is set correctly according to your application and server's configuration.
+      - name: Copy config files
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_SERVER }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          script: |
+            echo '${{ secrets.ENV_FILE }}' > ${{ env.RELEASE_PATH }}/current/.env
+            echo '${{ vars.NGINX_CONFIG }}' > /etc/nginx/sites-available/${{ vars.APP_NAME }}-${{ vars.COMPONENT_NAME }}-${{ env.NODE_ENV }}.conf
+            sudo systemctl restart nginx
+
+      # The sixth step installs dependencies, builds the application, and starts it with PM2.
+      # PM2 is a process manager for Node.js applications that helps to ensure that the application runs continuously
+      # and can be easily managed. Ensure that this is set correctly according to your application's dependencies and build process.
+      - name: Install deps & restart PM2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_SERVER }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          script: |
+            cd ${{ env.RELEASE_PATH }}/current
+            yarn install
+            yarn run build
+            pm2 delete -s ${{ vars.APP_NAME }}-${{ env.NODE_ENV }} || :
+            pm2 start dist/index.js --name "${{ vars.APP_NAME }}-${{ env.NODE_ENV }}" --update-env --env ${{ env.NODE_ENV }}

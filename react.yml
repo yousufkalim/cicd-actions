@@ -1,0 +1,93 @@
+# ---------------- Developed by Yousuf Kalim - MERN TL ---------------- #
+# This workflow is a Continuous Integration/Continuous Deployment (CI/CD) pipeline for deploying a React.js frontend application
+# to a remote ubuntu server.
+#
+# Here are some comments to make it easier for everyone to use:
+#
+# 1. The workflow uses environment variables to set the application name, component name, and release path.
+#    Ensure that these are set correctly according to your application's configuration.
+#
+# 2. The workflow runs on a push to the main branch and can be manually triggered with inputs to specify the target environment.
+#
+# 3. It's important to note that this workflow uses repository environment and several secrets and variables that need to be set up
+#    in order for it to work properly. You will need to create the following secrets in your repository environment:
+#
+#    3.1. REMOTE_SERVER: the IP address or domain name of the remote server you are deploying to.
+#    3.2. REMOTE_USER: the username you use to SSH into the remote server (root user is recommended).
+#    3.3. REMOTE_KEY: the SSH private key you use to authenticate with the remote server.
+#
+# In addition, you will need to set up the following variables in your repository environment:
+#
+#    3.4. NGINX_CONFIG: the contents of your NGINX configuration file. This should be a multi-line string with each line
+#         separated by a newline character.
+#
+# Overall, this workflow provides a good starting point for deploying a React.js frontend application to a remote server using GitHub Actions.
+# However, it should be customized according to your application's specific requirements.
+
+name: 'CI/CD'
+
+env:
+  APP_NAME: 'react' # Set this to your app name
+  COMPONENT_NAME: 'frontend' # Set this to your component name (e.g, frontend, admin, backend)
+  RELEASE_PATH: /root/react/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/frontend # This is dyanmic release path and it will be unique for each environment, e.g: /root/react/dev/frontend
+  NODE_ENV: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }} # It will auto check the current environment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (dev, staging, prod)'
+        type: environment
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}
+
+    steps:
+      # The first step checks out the code from the repository.
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # The second step sets up Node.js with version 14.
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      # The third step installs the dependencies and creates a build.
+      - name: Install deps and build project
+        run: |
+          yarn install
+          yarn run build
+
+      # The fourth step transfers the code to the remote server using the Secure Copy (SCP) protocol.
+      # The source directory is set to 'build', which excludes the other directories from being transferred.
+      # Ensure that this is set correctly according to your application's file structure.
+      - name: Transfer files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.REMOTE_SERVER }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          rm: true
+          source: 'build/*'
+          target: ${{ env.RELEASE_PATH }}
+
+      # The fifth step copies the NGINX configuration file to the remote server.
+      # The NGINX configuration file is used to proxy requests to the application.
+      # Ensure that this is set correctly according to your application and server's configuration.
+      - name: Copy config files
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_SERVER }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_KEY }}
+          script: |
+            echo '${{ vars.NGINX_CONFIG }}' > /etc/nginx/sites-available/${{ env.APP_NAME }}-${{ env.COMPONENT_NAME }}-${{ env.NODE_ENV }}.conf
+            sudo systemctl restart nginx
