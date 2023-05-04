@@ -102,7 +102,7 @@ jobs:
           key: ${{ secrets.REMOTE_KEY }}
           script: |
             echo '${{ secrets.ENV_FILE }}' > ${{ env.RELEASE_PATH }}/current/.env
-            echo '${{ vars.NGINX_CONFIG }}' > /etc/nginx/sites-available/${{ vars.APP_NAME }}-${{ vars.COMPONENT_NAME }}-${{ env.NODE_ENV }}.conf
+            echo '${{ vars.NGINX_CONFIG }}' > /etc/nginx/sites-available/${{ env.APP_NAME }}-${{ env.COMPONENT_NAME }}-${{ env.NODE_ENV }}.conf
             sudo systemctl restart nginx
 
       # The sixth step installs dependencies, builds the application, and starts it with PM2.
@@ -118,5 +118,5 @@ jobs:
             cd ${{ env.RELEASE_PATH }}/current
             yarn install
             yarn run build
-            pm2 delete -s ${{ vars.APP_NAME }}-${{ env.NODE_ENV }} || :
-            pm2 start dist/index.js --name "${{ vars.APP_NAME }}-${{ env.NODE_ENV }}" --update-env --env ${{ env.NODE_ENV }}
+            pm2 delete -s ${{ env.APP_NAME }}-${{ env.NODE_ENV }} || :
+            pm2 start dist/index.js --name "${{ env.APP_NAME }}-${{ env.NODE_ENV }}" --update-env --env ${{ env.NODE_ENV }}
