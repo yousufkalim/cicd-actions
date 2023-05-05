@@ -64,7 +64,7 @@ jobs:
       - name: Install deps and build project
         run: |
           yarn install
-          yarn run build
+          CI= yarn run build
 
       # The fourth step transfers the code to the remote server using the Secure Copy (SCP) protocol.
       # The source directory is set to 'build', which excludes the other directories from being transferred.
