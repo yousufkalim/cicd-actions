@@ -15,11 +15,13 @@
 #    3.1. REMOTE_SERVER: the IP address or domain name of the remote server you are deploying to.
 #    3.2. REMOTE_USER: the username you use to SSH into the remote server (root user is recommended).
 #    3.3. REMOTE_KEY: the SSH private key you use to authenticate with the remote server.
+#    3.4. NGINX_CONFIG: the contents of your NGINX configuration file. This should be a multi-line string with each line
+#         separated by a newline character.
 #
 # In addition, you will need to set up the following variables in your repository environment:
 #
-#    3.4. NGINX_CONFIG: the contents of your NGINX configuration file. This should be a multi-line string with each line
-#         separated by a newline character.
+#    3.5. APP_NAME: the name of the project without spaces.
+#    3.6. COMPONENT_NAME: the name of the app component e.g: frontend, admin, backend.
 #
 # Overall, this workflow provides a good starting point for deploying a React.js frontend application to a remote server using GitHub Actions.
 # However, it should be customized according to your application's specific requirements.
@@ -27,10 +29,10 @@
 name: 'CI/CD'
 
 env:
-  APP_NAME: 'react' # Set this to your app name
-  COMPONENT_NAME: 'frontend' # Set this to your component name (e.g, frontend, admin, backend)
-  RELEASE_PATH: /root/react/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/frontend # This is dyanmic release path and it will be unique for each environment, e.g: /root/react/dev/frontend
-  NODE_ENV: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }} # It will auto check the current environment
+  APP_NAME: ${{ vars.APP_NAME }}
+  COMPONENT_NAME: ${{ vars.COMPONENT_NAME }}
+  RELEASE_PATH: /root/${{ vars.APP_NAME }}/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/${{ vars.COMPONENT_NAME }}
+  NODE_ENV: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}
 
 on:
   push:
@@ -54,11 +56,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # The second step sets up Node.js with version 14.
+      # The second step sets up Node.js with version 16.
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 16
 
       # The third step installs the dependencies and creates a build.
       - name: Install deps and build project
@@ -89,5 +91,5 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.REMOTE_KEY }}
           script: |
-            echo '${{ vars.NGINX_CONFIG }}' > /etc/nginx/sites-available/${{ env.APP_NAME }}-${{ env.COMPONENT_NAME }}-${{ env.NODE_ENV }}.conf
+            echo '${{ vars.NGINX_CONFIG }}' > ${{ env.RELEASE_PATH }}/build/nginx.conf
             sudo systemctl restart nginx
