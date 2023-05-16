@@ -20,11 +20,6 @@
 #    3.5. NGINX_CONFIG: the contents of your NGINX configuration file. This should be a multi-line string with each line
 #         separated by a newline character.
 #
-# In addition, you will need to set up the following variables in your repository environment:
-#
-#    3.6. APP_NAME: the name of the project without spaces.
-#    3.7. COMPONENT_NAME: the name of the app component e.g: frontend, admin, backend.
-#
 # Overall, this workflow provides a good starting point for deploying a Node.js backend application to a remote server using GitHub Actions.
 # However, it should be customized according to your application's specific requirements.
 
