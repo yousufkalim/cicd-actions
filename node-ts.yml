@@ -31,9 +31,9 @@
 name: 'CI/CD'
 
 env:
-  APP_NAME: ${{ vars.APP_NAME }}
-  COMPONENT_NAME: ${{ vars.COMPONENT_NAME }}
-  RELEASE_PATH: /root/${{ vars.APP_NAME }}/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/${{ vars.COMPONENT_NAME }}
+  APP_NAME: 'node'
+  COMPONENT_NAME: 'backend'
+  RELEASE_PATH: /root/node/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/backend
   NODE_ENV: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}
 
 on:
@@ -117,7 +117,7 @@ jobs:
           script: |
             cd ${{ env.RELEASE_PATH }}/build
             yarn install
-            yarn run build --if-present
+            yarn run build
 
       # The seventh step starts it with PM2.
       # PM2 is a process manager for Node.js applications that helps to ensure that the application runs continuously
