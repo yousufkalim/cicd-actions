@@ -18,20 +18,15 @@
 #    3.4. NGINX_CONFIG: the contents of your NGINX configuration file. This should be a multi-line string with each line
 #         separated by a newline character.
 #
-# In addition, you will need to set up the following variables in your repository environment:
-#
-#    3.5. APP_NAME: the name of the project without spaces.
-#    3.6. COMPONENT_NAME: the name of the app component e.g: frontend, admin, backend.
-#
 # Overall, this workflow provides a good starting point for deploying a React.js frontend application to a remote server using GitHub Actions.
 # However, it should be customized according to your application's specific requirements.
 
-name: 'CI/CD'
+name: 'CD'
 
 env:
-  APP_NAME: ${{ vars.APP_NAME }}
-  COMPONENT_NAME: ${{ vars.COMPONENT_NAME }}
-  RELEASE_PATH: /root/${{ vars.APP_NAME }}/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/${{ vars.COMPONENT_NAME }}
+  APP_NAME: 'react'
+  COMPONENT_NAME: 'frontend'
+  RELEASE_PATH: /root/react/${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}/frontend
   NODE_ENV: ${{ github.event_name == 'push' && 'dev' || github.event.inputs.environment }}
 
 on:
